@@ -69,13 +69,13 @@ PANELS = ('heatmap', 'momentum slice', 'energy slice', 'coupling view')
 # settings fields (label, default string) -- defaults match MC7.initialize()
 FIELDS = [
     ('Data file', ''),
-    ('slice_energies (eV)', '1.247434'),
-    ('momenta (um^-1)', '20.5'),
+    ('slice_energies (eV)', '1.247,1.25'),
+    ('momenta (um^-1)', '20.5,21'),
     ('max_energy (eV)', '1.5'),
-    ('N (auto or value)', 'auto'),
+    ('N (auto or value)', '1'),
     ('promincence', '3e-3'),
-    ('fhm_thres', '2.'),
-    ('cov_thres_espace', '1e-4'),
+    ('fwhm_thres', '2.'),
+    ('cov_thres_espace', '7e-6'),
     ('cov_thres_kspace', '1e-2'),
     ('vmax', '2.'),
     ('norm (R or T)', 'R'),
@@ -219,7 +219,7 @@ class ToolboxGUI:
             'max_energy': float(g('max_energy (eV)')),
             'Nfix': None if n in ('', 'auto', 'fit') else float(n),
             'promincence': float(g('promincence')),
-            'fhm_thres': float(g('fhm_thres')),
+            'fwhm_thres': float(g('fwhm_thres')),
             'cov_thres_espace': float(g('cov_thres_espace')),
             'cov_thres_kspace': float(g('cov_thres_kspace')),
             'vmax': float(g('vmax')),
@@ -295,7 +295,7 @@ class ToolboxGUI:
             results = mc7.import_full_data(
                 fname, norm_power=st['t'], slice_energies=st['slice_energies'],
                 momenta=st['momenta'], Nfix=st['Nfix'], promincence=st['promincence'],
-                fhm_thres=st['fhm_thres'], cov_thres_espace=st['cov_thres_espace'],
+                fwhm_thres=st['fwhm_thres'], cov_thres_espace=st['cov_thres_espace'],
                 cov_thres_kspace=st['cov_thres_kspace'])
         finally:
             rp.plot.spectra = orig_spectra

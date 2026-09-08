@@ -108,7 +108,7 @@ class MC7:
             self.filename = candidates[0] if candidates else None
             self.slice_energies = [1.247434]
             self.momenta = [20.5]
-            n_input = 'auto'
+            n_input = '1'
 
         if n_input in ('', 'auto', 'fit'):
             self.Nfix = None
@@ -118,12 +118,12 @@ class MC7:
             n_desc = f"pinned to {self.Nfix:g}"
 
         # --- 4. fit settings (passed to import_full_data -> both fits; edit here) ---
-        # promincence / fhm_thres are shared by BOTH fit_GMR_kspace and
+        # promincence / fwhm_thres are shared by BOTH fit_GMR_kspace and
         # fit_GMR_espace. Previous per-fit defaults: kspace prominence=3e-3,
         # fwhm=2. (um^-1); espace prominence=1e-2, fwhm=.05 (eV).
         self.promincence = 3e-3
-        self.fhm_thres = 2.
-        self.cov_thres_espace = 1e-4
+        self.fwhm_thres = 2.
+        self.cov_thres_espace = 5e-6
         self.cov_thres_kspace = 1e-2
         self.vmax = 2.
 
@@ -133,7 +133,7 @@ class MC7:
             me_input = input("Max fit energy (eV) [1.5]: ").strip() or '1.5'
             self.max_energy = float(me_input)
         else:
-            self.max_energy = 1.5
+            self.max_energy = 1.35
 
         print(f'\nfile={self.filename}')
         print(f'slice_energies={self.slice_energies} eV')
@@ -301,10 +301,10 @@ class MC7:
         return np.asarray(lorentzian_fits)
 
     def import_full_data(self, filename, k_min=0, norm_power='R', slice_energies=None, momenta=None, Nfix=None,
-                         promincence=3e-3, fhm_thres=2., cov_thres_espace=1e-4, cov_thres_kspace=1e-2):
+                         promincence=3e-3, fwhm_thres=2., cov_thres_espace=1e-4, cov_thres_kspace=1e-2):
         """Load one FSP output file and fit all GMR lines.
 
-        Fit settings (promincence, fhm_thres, cov_thres_*) are passed on to the
+        Fit settings (promincence, fwhm_thres, cov_thres_*) are passed on to the
         relevant subfunction calls: fit_GMR_kspace and fit_GMR_espace.
         """
         if slice_energies is None:
@@ -347,7 +347,7 @@ class MC7:
             data = lam_data if len(data) < 1 else np.vstack([data, lam_data])
 
             momentum_fits, momentum_peaks = self.fit_GMR_kspace(energy, lam_data[:,1], lam_data[:,2],
-                                                                fwhm_thres=fhm_thres, prominence=promincence,
+                                                                fwhm_thres=fwhm_thres, prominence=promincence,
                                                                 cov_thres=cov_thres_kspace)
             mdic[energy] = momentum_fits
             peakd[energy] = momentum_peaks
@@ -357,11 +357,11 @@ class MC7:
         edic = {}
         # k grid detected from the data file (may differ per file)
         momenta_grid = np.arange(10, max_k+step_k, step_k)
-        print('Detected k-step', step_k, max_k)
+        print('Detected k-step', step_k)
         for mom in momenta_grid:
             subarray = self.find_and_extract_klines(data, mom, 1)
             edic[mom] = self.fit_GMR_espace(subarray[:,0], subarray[:,2], momentum=mom, Nfix=Nfix,
-                                            fwhm_thres=fhm_thres, prominence=promincence,
+                                            fwhm_thres=fwhm_thres, prominence=promincence,
                                             cov_thres=cov_thres_espace)
 
         plt.close()
@@ -609,7 +609,7 @@ class MC7:
         """Run the full pipeline: import + fit all data, then plot Fig 7."""
         data, dict_momentum, dict_energy, peaks = self.import_full_data(
             self.filename, norm_power=self.t, slice_energies=self.slice_energies, momenta=self.momenta,
-            Nfix=self.Nfix, promincence=self.promincence, fhm_thres=self.fhm_thres,
+            Nfix=self.Nfix, promincence=self.promincence, fwhm_thres=self.fwhm_thres,
             cov_thres_espace=self.cov_thres_espace, cov_thres_kspace=self.cov_thres_kspace)
 
         self.plot_figure(data, dict_momentum, dict_energy, slice_energies=self.slice_energies,
