@@ -1,0 +1,199 @@
+#####################################################################
+# farfield_power_analysis_lsf129.lsf  (Lumerical FDTD script)
+#
+# Purpose
+#   Post-processes a light-trapping FDTD simulation:
+#   1. Runs the "FDTD" project if it has not been run yet (aborts if diverged).
+#   2. Reads transmission/reflection results (T, R per frequency) and integrates
+#      the near-field Poynting vector on the transmission monitor as a cross-check.
+#   3. For every frequency: extracts the far field (farfield3d) on an angular grid
+#      4x finer than the momentum step ("4xRes") and integrates the far-field
+#      Poynting vector in momentum bins of width step_size (um^-1) around the
+#      normal direction.
+#   4. Writes:
+#        - one file per frequency:  <name>_freq<N>_out.dat
+#          (cone half-angle in deg vs power in each momentum bin, W)
+#        - one summary file for all frequencies:
+#          <name>_<step_size>um1_tgt+1-4xRes_full_out_v129.dat
+#          columns: lambda (nm), source power (W), transmitted power (W),
+#                   (1-R) power entering the structure (W), total far-field
+#                   power (W), then k values (um^-1) [first half of the
+#                   remaining line] and per-bin cone power (W) [second half].
+#
+# Units: momentum in um^-1 ("per micron"), wavelength in nm, power in W.
+#####################################################################
+
+#################### USER INPUT
+# Run the FDTD project first if it has not been run yet?
+# getresult("FDTD","status"): 0 = not run (kick off), 3 = diverged (abort).
+if ( getresult("FDTD", "status") == 0) {run;}
+if ( getresult("FDTD", "status") == 3) {?"Simulation diverged"; break;}
+
+# Far-field monitor to transform into the far field (transmission side).
+monitor="Transmission2";    
+
+# Reflection monitor, used only for power calibration:
+# (1-R) gives the fraction of source power that enters the structure.
+reflection="Reflection";  
+
+# Substrate refractive index (constant), e.g. Si at short wavelengths.
+# Used in the far-field impedance factor below and as substrate index for farfield3d.
+n=3.55;
+# Dispersive material to use instead of the constant n above (only if real_n=true).
+material="Silicon-small-steps";
+# false: use the constant n above. true: n = real(getindex(material, f)) at each frequency.
+real_n=true;
+
+# Illumination type passed to farfield3d: 1 = Gaussian beam, 2 = plane wave.
+illumination=2;
+
+# Momentum bin width for the far-field cone integration, in um^-1 ("per micron").
+# (The original note asked about angle step vs momentum step vs point count;
+#  this script uses an equal momentum step.)
+step_size=0.25; # Per Micron
+
+#################### Retrieve results
+select("FDTD");
+lateral_size=get("x span");  # Lateral (x) extent of the simulated structure (m); used to compute the tiling factor for the far field.
+
+# Full output filename. Decoded suffix: <step_size> um^-1 momentum bins,
+# "tgt+1" = tiling with periods = tgtsize/lateral_size+1, "4xRes" = far-field grid
+# 4x finer than step_size, "full_out" = all frequencies, v129 = script version.
+full_name=currentfilename +"_"+num2str(step_size)+"um1_tgt+1-4xRes_full_out_v129.dat";
+
+# Retrieve monitor results.
+f=getdata(monitor,"f");      # Frequency vector (Hz).
+T_result = getresult(monitor, "T"); # Struct: .lambda = wavelength (m), .T = complex transmission coefficient.
+electric = getelectric(monitor);  # Electric field on the monitor (fetched but not used further - kept for debugging).
+x = getdata(monitor,"x");         # Monitor real-space x coordinates (m), needed by integrate().
+y = getdata(monitor,"y");         # Monitor real-space y coordinates (m), needed by integrate().
+Pz =getdata(monitor,"Pz");         # z-component of the time-averaged Poynting vector on the monitor (W/m^2).
+Tpz = 0.5*integrate(pinch(real(Pz)),1:2,x,y);  # Transmitted power per frequency (W): Pz integrated over the monitor area.
+lambda=T_result.lambda*1e9;   # Wavelength array in nm (getresult returns lambda in m; *1e9 -> nm). All formulas below assume lambda in nm.
+T=abs(T_result.T);     # Magnitude of the transmission coefficient (fraction of source power transmitted).
+sp=sourcepower(f);     # Power injected by the source at each frequency (W).
+transmitted_power=T*sp;  # Transmitted power per frequency (W) = T * P_source.
+R_result = getresult(reflection, "T"); # Reflection result struct (.T = complex reflection coefficient).
+reflected_power=(1-abs(R_result.T))*sp; # Power entering the structure (W): source power minus back-reflection, i.e. (1-R) * P_source.
+theta0=0; phi0=0; # Center direction of the integration cones in the far field (deg): normal incidence.
+
+
+#########################################################
+# Output data arrays
+f_points=length(f);
+nmax=n;  # Largest refractive index used to size the output arrays.
+if (real_n) {nmax=max(real(getindex(material,f)));}  # ...or the maximum real part of the dispersive index over all frequencies.
+kmax=2*pi/min(lambda)*1e3*nmax;  # Largest in-plane light-line momentum (um^-1): k = 2*pi*n/lambda with lambda in nm (*1e3 converts nm^-1 -> um^-1).
+?"kmax (um-1):"+num2str(kmax);
+array_size=(round(kmax/step_size)+1);  # Number of momentum bins at the highest frequency; sizes the output columns.
+data = matrix(f_points,5+array_size*2);  # Layout per frequency row: 5 summary columns + array_size k values (um^-1) + array_size per-bin powers (W).
+
+# Start loop frequencies
+for(f_idx = 1; f_idx <= f_points; f_idx = f_idx + 1){   
+?"Frequency index: "+num2str(f_idx);
+
+# Set refractive index if dispersive
+if (real_n) {
+n=real(getindex(material,f(f_idx)));  # Real part of the dispersive index at this frequency.
+}
+
+# Set freq dependent parameters
+#Max k vector
+k_max=2*pi*n*f(f_idx)/c/1e6;  # In-plane light-line momentum at this frequency (um^-1): 2*pi*n*f/c is in 1/m, /1e6 -> 1/um.
+#Step in k, sets lateral dimension and resolution
+k_step=step_size;  # Momentum bin width (um^-1).
+num_points=k_max/k_step;  # Number of momentum bins from 0 to k_max at this frequency.
+tgtsize=2*pi/k_step/1e6;  # Lateral size (m) that yields exactly one far-field sample per k_step: 2*pi/k_step is in um, /1e6 -> m.
+periods=tgtsize/lateral_size+1;  # Number of structure periods to tile in x and y so the near field spans tgtsize (+1 for overlap).
+res=4* 2* (num_points)+1;  # Far-field angular grid size per axis: 8*num_points+1 samples -> momentum spacing ~k_step/4 over +/-k_max ("4xRes").
+
+?"lamda, kmax, periods, resolution";
+?c/f(f_idx)*1e9;  # Vacuum wavelength (nm).
+?k_max;  # Light-line momentum at this frequency (um^-1).
+?periods;  # Tiling factor for the far field.
+?res;  # Far-field angular samples per axis.
+
+
+# Integrate near fields for transmitted power
+int_power=Tpz(f_idx);  # Near-field transmitted power at this frequency (W). Not written to the outputs - cross-check against T*sp and p_ff_total.
+
+# Extract vectors and calculate far field
+ux = farfieldux(monitor,f_idx,res,res);  # Far-field x-polarized field on a res x res angular grid.
+uy = farfielduy(monitor,f_idx,res,res);  # Far-field y-polarized field on the same grid.
+E2 = farfield3d(monitor,f_idx,res,res,illumination,periods,periods,n);  # |E|^2 in the far field: res x res grid, illumination type, near field tiled by periods x periods, substrate index n.
+
+# Get the total far field power
+p_ff_total=0.5*n*sqrt(eps0/mu0)*farfield3dintegrate(E2,ux,uy);  # Total far-field radiated power over all angles (W): 0.5*n*sqrt(eps0/mu0) converts the integrated |E|^2 to time-averaged Poynting in a medium of index n.
+
+# Start the line for this frequency in the output array
+data(f_idx,1) = lambda(f_idx);  # Wavelength (nm).
+data(f_idx,2) = sourcepower(f_idx);  # Source power (W).
+data(f_idx,3) = transmitted_power(f_idx);  # Transmitted power T*P_source (W).
+data(f_idx,4) = reflected_power(f_idx);  # Power entering the structure (1-R)*P_source (W).
+data(f_idx,5) = p_ff_total;  # Total far-field radiated power (W).
+
+# Create an output array for this wavelength
+angle_data = matrix(array_size,2);  # Per-frequency output table: (cone half-angle in deg, per-bin power in W).
+# define filename to export to
+oname=currentfilename +"_freq"+num2str(f_idx) +"_out.dat";  # Per-frequency output filename.
+# Remove in case it exists already, otherwise Lum would append
+if (fileexists(oname)) {del(oname);}
+# write the file header
+file_header="Angle (deg), Power in cone angle for lambda: " +num2str(lambda(f_idx))+ " nm. Sourcepower: " +num2str(sp(f_idx))+ " W. ";
+file_header=file_header+"Transmission: "+num2str(T(f_idx))+". (1-R): "+num2str(reflected_power(f_idx))+" W. Refractive index: "+num2str(n);
+# Remove in case it exists already, otherwise Lum would append
+if (fileexists(oname)) {del(oname);}
+write(oname,file_header);
+
+
+   
+# Start loop angles
+angles_count=0;  # Bin counter for this frequency (also the column offset into data).
+p_ff_cone_prev=0;  # Cumulative cone power from the previous bin (starts at 0: no power at k=0).
+for(k = k_step; k < k_max; k = k + k_step){  
+
+if ( k > k_max) {k=k_max;}  # Effectively dead code: the loop condition above already guarantees k < k_max.
+halfangle=180/pi*asin(k/k_max);  # Cone half-angle (deg): in-plane momentum k = k_max*sin(theta) -> theta = asin(k/k_max), rad -> deg.
+
+?num2str(halfangle)+" degrees. "+num2str(k)+" per micron. "+num2str(angles_count);
+     
+# ?"Angle (deg): "+num2str(halfangle);
+angles_count=angles_count+1;
+
+#########################################################
+# calculate and integrate the Poynting vector
+# Power in the cone
+p_ff_cone=0.5*n*sqrt(eps0/mu0)*farfield3dintegrate(E2,ux,uy, halfangle, theta0, phi0);  # Cumulative far-field power (W) inside a cone of half-angle `halfangle` around (theta0,phi0).
+p_ff_cone_diff=p_ff_cone - p_ff_cone_prev;  # Power (W) in the momentum bin (k-k_step, k].
+
+# Add result to full output arrays
+data(f_idx,5+angles_count) = k;  # First half of the remaining line: k values (um^-1).
+data(f_idx,5+angles_count+array_size) = p_ff_cone_diff;  # Second half: per-bin power (W). Lower frequencies leave the trailing columns at 0.
+angle_data(angles_count,1) = halfangle;  # Per-frequency file: cone half-angle (deg).
+angle_data(angles_count,2) = p_ff_cone_diff;  # Per-frequency file: per-bin power (W).
+
+# save current cone power integral
+p_ff_cone_prev=p_ff_cone;
+
+# End loop angles
+}
+
+# Write output array for this frequency
+# write the data to the file
+write(oname,num2str(angle_data));   # Per-frequency angle vs power table.
+
+# Remove in case it exists already, otherwise Lum would append
+if (fileexists(full_name)) {del(full_name);}  # NOTE: rewritten on every frequency iteration; only the final write matters (could be moved after the loop).
+
+# write the file header
+write(full_name,"lambda (nm), Source power (W), Trans power (W), 1-R power (W), FF total power (W), k (um-1) [1. half of line remainder], Power in cone up to k (W) [2nd holr]");  # ("holr" in the header string is a typo for "half"; left as-is so old files keep matching).
+
+# write the data to the file
+write(full_name,num2str(data));   # Full matrix: all frequencies.
+
+
+
+# End loop frequencies
+}
+
+
