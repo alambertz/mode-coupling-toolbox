@@ -3,9 +3,18 @@ ANSYS-Lumerical FDTD simulation setup and post-processing pipeline for quantifyi
 
 This repository accompanies the publication "Quantifying light coupling to guided modes in semiconductor slabs with arbitrary scattering patterns" by A. Lambertz, E. Alarcon-Llado, and Jorik van de Groep, [in review], 2026.
 
+"Toolbox" here refers to the complete post-processing pipeline — not a single script or program. It comprises six modules (now enumerated in the updated Methods):
+
+1. FDTD simulation of arbitrary 3D structures with frequency-domain power-dissipation monitors.
+2. Far-field projection to obtain momentum-resolved spectral decomposition of absorptance.
+3. Construction of k∥–E_ph heatmaps from the spatially resolved dissipation data.
+4. Internal loss decomposition into material absorption (γ_i) and radiative channels (γ_r).
+5. Peak-finding algorithm to match guided-mode dispersion curves obtained from mode solvers.
+6. GMR fitting to obtain physical quantities including the coupling rates.
+
 # Description of the content
 
-The folders are numbered in pipeline order:
+The folders are numbered in pipeline order and map onto the six modules: `01` → 1, `02` → 2, `03-05` → 3–4, `06` → 5–6.
 
 | Folder | Content |
 |---|---|
@@ -16,8 +25,8 @@ The folders are numbered in pipeline order:
 
 # Requirements
 
-- **Step 01:** ANSYS Lumerical FDTD (the Python setup scripts assume the lumapi path `/opt/lumerical/v222/api/python/lumapi.py` on Linux — adjust for other installations).
-- **Step 02:** Adjust and run the provided .lsf script against any .fsp simulation file obtained in step 01.
+- **Step 01:** ANSYS Lumerical FDTD v22.2 (the Python setup scripts assume the lumapi path `/opt/lumerical/v222/api/python/lumapi.py` on Linux — adjust for other installations).
+- **Step 02:** run inside Lumerical with the corresponding FDTD project open.
 - **Steps 03–06:** Python 3 with `numpy`, `matplotlib`, `scipy`, `Pillow`; a LaTeX installation (TeX Live + cm-super — figures use `text.usetex` with Arial); `ramanspy` for the Fig. 7 fits; `tkinter` + a display for the GUI (step 06 only).
 - All input data files (material data, mode libraries, AM15G spectrum, far-field outputs) are included in the repository.
 
