@@ -3,7 +3,7 @@ ANSYS-Lumerical FDTD simulation setup and post-processing pipeline for quantifyi
 
 This repository accompanies the publication "Quantifying light coupling to guided modes in semiconductor slabs with arbitrary scattering patterns" by A. Lambertz, E. Alarcon-Llado, and Jorik van de Groep, [in review at Optics Express], 2026.
 
-"Toolbox" here refers to the complete post-processing pipeline — not a single script or program. It comprises six modules:
+"Toolbox" here refers to the complete post-processing pipeline and comprises six modules:
 
 1. FDTD simulation of arbitrary 3D structures with frequency-domain power-dissipation monitors.
 2. Far-field projection to obtain momentum-resolved spectral decomposition of absorptance.
