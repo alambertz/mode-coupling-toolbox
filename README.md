@@ -56,8 +56,12 @@ python -m mctoolbox.figures          # Figs. 4-7, or e.g.: python -m mctoolbox.f
 
 Each `figures/figN/` folder is self-contained: the data it uses, a `config.toml` with every parameter, and
 `make_figN.py`. Outputs (`fig_N.pdf/png`, and for Fig. 7 the fit tables `fig7_*_fits.csv`) are written into
-the same folder. `figures/fig7/gui.py` opens an interactive explorer for the GMR analysis
-(`gui.py --test` renders its panels without a display).
+the same folder.
+
+`figures/fig7/gui.py` opens an interactive explorer for the GMR analysis (needs tkinter): change the fit
+settings, click in the heatmap to move the slices, save the fit tables, single panels or the full figure,
+and save or load the settings as a `config.toml`. `gui.py --test` runs it without a display;
+`MCT_GUI_SCALE=1.5` enlarges the interface on high-resolution screens.
 
 ## Running your own simulation
 
@@ -92,8 +96,14 @@ submitted settings.
   chosen explicitly (`EFitSettings.branch`, default: gamma_i may not exceed the bulk absorption rate).
   Momentum- and energy-domain thresholds are separate settings with their own units.
 * **Power fractions:** each energy used to be labelled with the next energy (one-step offset).
-* **Fig. 5, top row:** the escape-cone column is the cone containing the critical angle (was 3 degrees
-  smaller). File-to-panel assignments in Figs. 5 and 6 are explicit instead of depending on file order.
+* **Fig. 5, top row:** the bands were computed swapped (the blue "beyond k_c" band showed the power inside
+  the escape cone). The critical angle is now evaluated at every photon energy from the substrate index and
+  the cone power is interpolated at it (previously a fixed 14-degree column).
+* **Mode absorptance (Figs. 4, 5):** all power in the guided-mode regime is attributed to a mode, with the
+  windows described in the Methods (previously about 1 % was left unassigned).
+* **Group velocity:** v_G = FWHM_e/FWHM_m and n_g are computed from matched energy- and momentum-domain fits
+  and written to `fig7_espace_fits.csv`.
+* File-to-panel assignments in Figs. 5 and 6 are explicit instead of depending on file order.
 * **FDTD scripts:** `lumapi` is found via `LUMAPI_PATH` or the standard install folders; the material
   project `material-setup.fsp` is loaded from the script folder.
 * **`farfield_power_analysis.lsf` (v130):** stores the source power at each frequency (previously

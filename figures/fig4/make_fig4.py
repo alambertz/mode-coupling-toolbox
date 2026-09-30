@@ -28,7 +28,7 @@ def compute(cfg):
     lib = ModeLibrary(path(cfg, cfg['mode_library']))
     return dict(ff=ff, si=si, lib=lib,
                 fractions=power_fractions(ff),
-                modes=attribute_modes(ff, lib, lib.n_modes, cfg['plot']['krad']))
+                modes=attribute_modes(ff, lib))
 
 
 def plot(cfg, r, out=HERE/'fig_4'):

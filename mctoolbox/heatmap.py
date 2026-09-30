@@ -34,8 +34,41 @@ def mode_curves(lib, n_modes):
     return curves
 
 
-def attribute_modes(ff, lib, n_modes, krad):
-    """Assign the power at each photon energy to the guided modes of the slab.
+def attribute_modes(ff, lib, dk=None):
+    """Assign all power in the guided-mode regime (k >= k0) to the guided modes of the slab.
+
+    At each photon energy the guided modes (beta > k0) are ordered by decreasing beta.
+    Mode i collects the bins with beta_i - 2*dk <= k < beta_{i-1} - 2*dk; the mode with the
+    largest beta has no upper limit and the one with the smallest beta extends down to k0.
+    The shift of 2*dk towards smaller k accommodates the red shift of the modes caused by the
+    pattern (see Methods, GMR modal attribution). Every bin with k >= k0 is counted exactly once.
+
+    dk: momentum bin width (default: the bin width of the data).
+    Returns {mode: array of [energy (eV), power fraction]} for modes with at least two points.
+    """
+    dk = ff.k_step if dk is None else dk
+    betas = {m: (xm.min(), xm.max(), scinter.interp1d(xm, ym)) for m, (xm, ym) in mode_curves(lib, lib.n_modes).items()}
+    out = {m: [] for m in betas}
+    for e in ff.energies:
+        rows = ff.rows[ff.rows[:, 0] == e]
+        k, p = rows[:, 1], rows[:, 2]
+        kc = k0(e)
+        guided = sorted(((float(f(e)), m) for m, (lo, hi, f) in betas.items() if lo <= e <= hi), reverse=True)
+        guided = [(b, m) for b, m in guided if b > kc]
+        upper = np.inf
+        for i, (beta, m) in enumerate(guided):
+            lower = beta - 2*dk if i < len(guided) - 1 else kc
+            take = (k >= max(lower, kc)) & (k < upper)
+            out[m].append([e, p[take].sum()])
+            upper = lower
+    return {m: np.asarray(v) for m, v in out.items() if len(v) > 1}
+
+
+def attribute_modes_legacy(ff, lib, n_modes, krad):
+    """Mode attribution of the first submission (kept to reproduce its numbers; see attribute_modes).
+
+    Leaves power between beta_0 + 3*krad/2 and the material light line, and below the highest
+    mode, unassigned.
 
     Modes are processed from the lowest order (largest beta) upwards. Mode 0
     collects the bins with |k - (beta_0 + krad/2)| <= krad; mode m collects

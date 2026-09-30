@@ -178,23 +178,28 @@ def read_scattering_cross_section(path, radius_nm):
 
 
 def read_cone_file(path, n_substrate=3.55):
-    """Single-particle far-field file with power in cones of 1..90 degrees.
+    """Single-particle far-field file with power in cones of 1..90 degrees around the normal.
 
     Columns: lambda (nm), source power, monitor power, total far-field power,
-    then cumulative power in cones of half-angle 1, 2, ..., 90 deg.
+    then the cumulative power in cones of half-angle 1, 2, ..., 90 deg.
 
-    Returns (photon energy eV, monitor power / source power, fraction of the
-    monitor power inside the escape cone of a substrate with index n_substrate).
-    The escape-cone column is the cone that contains the critical angle,
-    rounded up to the next full degree.
+    n_substrate: index of the medium the far field is projected into; a number or a
+    callable n(wavelength in um). The critical angle theta_c = asin(1/n) is evaluated
+    at every wavelength, and the power inside it is interpolated between the 1-degree
+    cone columns.
+
+    Returns (photon energy eV, monitor power / source power, fraction w of the
+    far-field power inside the critical cone, theta_c in degrees).
     """
     d = np.loadtxt(path, skiprows=1, delimiter='\t')
     lam = d[:, 0]
     frac = np.abs(np.minimum(1, d[:, 2]/d[:, 1]))
-    theta_c = np.degrees(np.arcsin(1/n_substrate))
-    col = 3 + int(theta_c + 1)           # cone of 1 deg is column 4
-    within = d[:, 2]/d[:, 1]*d[:, col]/d[:, 3]
-    return nm_to_eV(lam), frac, within
+    n = n_substrate(lam/1000) if callable(n_substrate) else np.full(len(lam), float(n_substrate))
+    theta_c = np.degrees(np.arcsin(1/n))
+    angles = np.arange(91)                                        # cone half-angles 0..90 deg
+    cum = np.column_stack([np.zeros(len(lam)), d[:, 4:94]/d[:, 3:4]])
+    inside = np.array([np.interp(t, angles, c) for t, c in zip(theta_c, cum)])
+    return nm_to_eV(lam), frac, inside, theta_c
 
 
 def load_am15(path):

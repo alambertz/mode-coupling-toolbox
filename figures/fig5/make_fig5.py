@@ -24,14 +24,23 @@ from mctoolbox.units import nm_to_eV
 HERE = Path(__file__).resolve().parent
 
 
+def substrate_index(cfg):
+    """Index of the single-pillar substrate: a number, or a refractive-index file (wl in um, n)."""
+    n = cfg['substrate_index']
+    return n if isinstance(n, (int, float)) else load_nk(path(cfg, n)).n_um
+
+
 def scattering_split(cfg, col):
-    """Scattering cross-section (sigma_scat/sigma_geo) split into backward / within / beyond the escape cone."""
+    """Scattering cross-section (sigma_scat/sigma_geo) and its split into backward scattering and forward
+    scattering within / beyond the escape cone (critical angle evaluated at every photon energy)."""
     x_s, sigma = read_scattering_cross_section(path(cfg, col['scattering_cross_section']), cfg['pillar_radius_nm'])
     sigma = scinter.interp1d(x_s, sigma)
-    x_f, forward, within = read_cone_file(path(cfg, col['cone_transmission']), cfg['substrate_index'])
-    x_b, backward, _ = read_cone_file(path(cfg, col['cone_reflection']), cfg['substrate_index'])
+    n = substrate_index(cfg)
+    x_f, forward, inside, theta_c = read_cone_file(path(cfg, col['cone_transmission']), n)
+    _, backward, _, _ = read_cone_file(path(cfg, col['cone_reflection']), n)
     total = forward + backward
-    return dict(x_scat=x_s, sigma=sigma, x=x_f, backward_frac=backward/total, within_frac=within/total)
+    return dict(x_scat=x_s, sigma=sigma, x=x_f, theta_c=theta_c, backward_frac=backward/total,
+                within_frac=forward*inside/total, beyond_frac=forward*(1 - inside)/total)
 
 
 def compute(cfg):
@@ -41,7 +50,7 @@ def compute(cfg):
     for col in cfg['column']:
         ff = read_farfield(path(cfg, col['farfield']), norm=cfg['norm'])
         cols.append(dict(height=col['height_nm'], ff=ff, fractions=power_fractions(ff),
-                         modes=attribute_modes(ff, lib, lib.n_modes, cfg['plot']['krad']),
+                         modes=attribute_modes(ff, lib),
                          scattering=scattering_split(cfg, col)))
     return dict(si=si, lib=lib, columns=cols)
 
@@ -51,15 +60,18 @@ def scattering_panel(ax, s, labels):
     ax.plot(s['x_scat'], sig(s['x_scat']), color='black')
     ax.set_ylabel(tex(r'$\mathrm{\sigma}_\mathrm{scat} / \mathrm{\sigma}_\mathrm{geo}$', r'$\sigma_\mathrm{scat}/\sigma_\mathrm{geo}$'),
                   fontsize=18, labelpad=5)
-    ax.fill_between(x, sig(x), sig(x)*(1 - s['backward_frac']), facecolor=SHADE_COLORS[0], color=SHADE_COLORS[0],
+    back, beyond = s['backward_frac'], s['beyond_frac']
+    # top: backward; middle: forward within the escape cone; bottom: forward beyond k_c
+    ax.fill_between(x, sig(x), sig(x)*(1 - back), facecolor=SHADE_COLORS[0], color=SHADE_COLORS[0],
                     edgecolor=None, interpolate=True)
-    ax.fill_between(x, sig(x)*(1 - s['backward_frac']), sig(x)*s['within_frac'], facecolor=SHADE_COLORS[2],
+    ax.fill_between(x, sig(x)*(1 - back), sig(x)*beyond, facecolor=SHADE_COLORS[2],
                     color=SHADE_COLORS[2], edgecolor=None, interpolate=True)
-    ax.fill_between(x, sig(x)*s['within_frac'], 0*x, facecolor=SHADE_COLORS[1], color=SHADE_COLORS[1],
+    ax.fill_between(x, sig(x)*beyond, 0*x, facecolor=SHADE_COLORS[1], color=SHADE_COLORS[1],
                     edgecolor=None, interpolate=True)
     if labels:
         xp = nm_to_eV(700)
-        pos = [(xp, sig(xp)*.92), (xp, sig(xp)*.5), (xp, ax.get_ylim()[1]*.08)]
+        b, w, bb = (np.interp(xp, x[::-1], f[::-1]) for f in (back, s['within_frac'], beyond))
+        pos = [(xp, sig(xp)*(1 - b/2)), (xp, sig(xp)*(bb + w/2)), (xp, sig(xp)*bb/2)]
         for text, p, c in zip(['backward', r'within $k_\mathrm{c}$', r'beyond $k_\mathrm{c}$'], pos, LABEL_COLORS):
             ax.annotate(text, xy=(nm_to_eV(800), 4.8), xytext=p, color=c,
                         horizontalalignment='left', verticalalignment='center')

@@ -5,6 +5,7 @@ Reference tables in reference/ were exported from the original figure scripts
 plot_fig7_clean_V188), each of which reproduces its archived PNG pixel for pixel.
 Differences to the current defaults are corrections, and each is pinned here:
   - power fractions: published values are shifted by one energy step;
+  - mode absorptance: published attribution (attribute_modes_legacy, krad 0.25 / 0.8);
   - Figs. 5 and 7: published reading pairs k and power 3 bins apart (split='half');
   - Fig. 7: published energy-domain line shape ('legacy').
 """
@@ -16,7 +17,7 @@ from conftest import read_reference, shifted_to_published
 
 from mctoolbox.config import load_config, path
 from mctoolbox.fit import analyse_coupling
-from mctoolbox.heatmap import attribute_modes, power_fractions
+from mctoolbox.heatmap import attribute_modes_legacy, power_fractions
 from mctoolbox.io import load_nk, read_farfield
 from mctoolbox.modes import ModeLibrary
 from conftest import FIGURES
@@ -39,7 +40,7 @@ def test_fig4():
     ff = read_farfield(path(cfg, cfg['farfield']), norm=cfg['norm'], lambda_min=cfg['lambda_min'])
     lib = ModeLibrary(path(cfg, cfg['mode_library']))
     assert_powerfrac(power_fractions(ff), read_reference('fig4_powerfrac_H75.csv'))
-    assert_modes(attribute_modes(ff, lib, lib.n_modes, cfg['plot']['krad']), read_reference('fig4_modeabs_H75.csv'))
+    assert_modes(attribute_modes_legacy(ff, lib, lib.n_modes, krad=0.25), read_reference('fig4_modeabs_H75.csv'))
 
 
 @pytest.mark.parametrize('height', [75, 175])
@@ -49,7 +50,7 @@ def test_fig5_published_reading(height):
     ff = read_farfield(path(cfg, col['farfield']), norm=cfg['norm'], split='half')
     lib = ModeLibrary(path(cfg, cfg['mode_library']))
     assert_powerfrac(power_fractions(ff), read_reference(f'fig5_powerfrac_H{height}.csv'))
-    assert_modes(attribute_modes(ff, lib, lib.n_modes, cfg['plot']['krad']),
+    assert_modes(attribute_modes_legacy(ff, lib, lib.n_modes, krad=0.8),
                  read_reference(f'fig5_modeabs_H{height}.csv'))
 
 

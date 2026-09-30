@@ -172,11 +172,35 @@ class CouplingResult:
     kfits: dict = field(default_factory=dict)   # {energy: [[center, amplitude, width], ...]}
     kpeaks: dict = field(default_factory=dict)  # {energy: [[position, height, fwhm], ...]}
     efits: dict = field(default_factory=dict)   # {k: [[E0, amplitude, gamma_i, gamma_e, N, unique], ...]}
+    k_step: float = float('nan')                # momentum bin width of the data (um^-1)
 
     def espace_table(self):
         """All energy-domain fits as rows [k, E0, amplitude, gamma_i, gamma_e, N, unique, gamma_e/gamma_i]."""
         rows = [[k, *f, f[3]/f[2]] for k in sorted(self.efits) for f in self.efits[k]]
         return np.asarray(rows).reshape(-1, 8)
+
+    def group_velocity(self):
+        """Group velocity of each energy-domain GMR from the widths in both domains.
+
+        Each row of espace_table() is matched with the momentum-domain Lorentzian at the
+        energy closest to E0 whose center lies within one bin of k. Then
+        v_G = domega/dk = (FWHM_e/hbar)/FWHM_m with FWHM_e = gamma_i + N*gamma_e (Eq. HH)
+        and FWHM_m = 2*HWHM of the Lorentzian.
+        Returns rows [v_G (m/s), n_g = c/v_G]; NaN where no momentum-domain fit matches.
+        """
+        energies = np.array(sorted(self.kfits))
+        out = []
+        for k, e0, _, gi, ge, n, *_ in self.espace_table():
+            e = energies[np.argmin(np.abs(energies - e0))] if len(energies) else None
+            fits = np.asarray(self.kfits.get(e, [])).reshape(-1, 3)
+            near = fits[np.abs(fits[:, 0] - k) <= self.k_step] if len(fits) else fits
+            if len(near) == 0:
+                out.append([np.nan, np.nan])
+                continue
+            hwhm_k = near[np.argmin(np.abs(near[:, 0] - k)), 2]
+            v = ((gi + n*ge)*E0/HBAR)/(2*hwhm_k*1e6)
+            out.append([v, C0/v])
+        return np.asarray(out).reshape(-1, 2)
 
     def kspace_table(self):
         """All momentum-domain fits as rows [energy, center, amplitude, width]."""
@@ -186,7 +210,7 @@ class CouplingResult:
 
 def analyse_coupling(ff, material, ks=KFitSettings(), es=EFitSettings()):
     """Fit all GMRs of a far-field dataset in both domains."""
-    res = CouplingResult()
+    res = CouplingResult(k_step=ff.k_step)
     for e in ff.energies:
         sub = ff.at_energy(e)
         res.kfits[e], res.kpeaks[e] = fit_kspace(e, sub[:, 1], sub[:, 2], ks)

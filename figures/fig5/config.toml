@@ -6,7 +6,8 @@ norm = "R"
 silicon = ["siliconR.txt", "siliconI.txt"]
 mode_library = "500nmSi-highP.dat"
 thickness_nm = 500
-substrate_index = 3.55   # semi-infinite substrate of the single-pillar simulations
+substrate_index = 3.55   # single-pillar simulations: dispersion-less semi-infinite substrate (paper Fig. 5a,d);
+                         # a number, or a refractive-index file (wl in um, n) for a dispersive substrate
 pillar_radius_nm = 75
 
 [[column]]
@@ -24,6 +25,5 @@ cone_transmission = "Pillar_on_Si_forFarField-r75h175-p4000nm-5M_V06.fsp_monTran
 cone_reflection = "Pillar_on_Si_forFarField-r75h175-p4000nm-5M_V06.fsp_monReflection_full_outV7.dat"
 
 [plot]
-krad = 0.8
 xlim = [1.2, 2.0]
 labels_on_height = 175   # draw the region labels in this column

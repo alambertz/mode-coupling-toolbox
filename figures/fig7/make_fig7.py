@@ -39,8 +39,10 @@ def write_tables(r, out_dir=HERE):
     f = r['fits']
     np.savetxt(out_dir/'fig7_kspace_fits.csv', f.kspace_table(), delimiter=',', comments='',
                header='energy_eV,center_k_um-1,amplitude,hwhm_k_um-1')
-    np.savetxt(out_dir/'fig7_espace_fits.csv', f.espace_table(), delimiter=',', comments='',
-               header='k_um-1,E0_eV,peak_absorptance,gamma_i_eV,gamma_e_eV,N,branch_unique,gamma_e_over_gamma_i')
+    np.savetxt(out_dir/'fig7_espace_fits.csv', np.column_stack([f.espace_table(), f.group_velocity()]),
+               delimiter=',', comments='',
+               header='k_um-1,E0_eV,peak_absorptance,gamma_i_eV,gamma_e_eV,N,branch_unique,gamma_e_over_gamma_i,'
+                      'v_group_m_per_s,n_group')
 
 
 def heatmap_panel(ax, r, cfg):
