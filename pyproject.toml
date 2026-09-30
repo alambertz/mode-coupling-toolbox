@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mctoolbox"
+version = "2.0.0.dev0"
+description = "Momentum-resolved analysis of light coupling to guided modes from FDTD far-field data"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+authors = [
+    { name = "Alexander Lambertz" },
+    { name = "Esther Alarcon-Llado" },
+    { name = "Jorik van de Groep" },
+]
+requires-python = ">=3.11"
+dependencies = ["numpy", "scipy", "matplotlib"]
+
+[project.optional-dependencies]
+test = ["pytest", "pillow"]
+gui = []   # tkinter ships with most Python installations
+
+[tool.setuptools.packages.find]
+include = ["mctoolbox*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,37 @@
+# Fig. 7: GMR analysis of the hyperuniform pattern (excerpt of Fig. 6e).
+# Fit settings are those of the published figure (plot_fig7_clean_V188.py); the energy-domain
+# line shape is Eq. HH of the paper.
+
+farfield = "500nmSi-wAbs-HUDPillar-H175R150nm-BS5.0um-Acc4-8M4400nmfit-lambda413-1127_V23.fsp_0.25um1_full_out_v128.dat"
+norm = "R"
+max_energy = 1.35         # eV
+energy_decimals = 6
+silicon = ["siliconR.txt", "siliconI.txt"]
+
+slice_energies = [1.247434]   # eV, panel (b)
+# um^-1, panel (c). The first submission showed 20.5, but its reader shifted the powers of this
+# file by 3 bins (0.75 um^-1), so that slice contained the power at 19.75 um^-1.
+slice_momenta = [19.75]
+
+[kfit]                    # Lorentzians in P(k) at fixed energy (momenta in um^-1)
+prominence = 3e-3
+max_fwhm = 2.0
+max_center_var = 1e-2
+half_window = 5
+
+[efit]                    # Eq. HH in P(E) at fixed k (energies in eV)
+prominence = 1e-2
+max_gamma_e = 0.05
+max_center_var = 1e-4
+half_window = 10
+N = 1.0
+lineshape = "cmt"
+branch = "bulk-bound"       # gamma_i may not exceed the bulk Si absorption rate; see mctoolbox.fit
+guided_only = true          # reject fits beyond the Si light line (edge artefacts of the heatmap)
+k_grid = [10.0, 25.5, 0.25]
+
+[plot]
+vmax = 2                  # colorbar maximum (%)
+xlim = [1.15, 1.35]
+klim = [10, 25]
+ratio_boundaries = [0, 1, 10, 100, 1000]

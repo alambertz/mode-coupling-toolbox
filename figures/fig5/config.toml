@@ -1,0 +1,29 @@
+# Fig. 5: pillars of height 75 nm and 175 nm (r = 75 nm, p = 350 nm) on 500 nm Si on a perfect mirror.
+# Top row: single-pillar scattering cross-section on a semi-infinite substrate (n = 3.55),
+# split into backward / within / beyond the escape cone. Values follow plot_fig5_weeded_V156.py.
+
+norm = "R"
+silicon = ["siliconR.txt", "siliconI.txt"]
+mode_library = "500nmSi-highP.dat"
+thickness_nm = 500
+substrate_index = 3.55   # semi-infinite substrate of the single-pillar simulations
+pillar_radius_nm = 75
+
+[[column]]
+height_nm = 75
+farfield = "500nmSi-wAbs-withBumpH75R75nm-BS350nm-Acc4-4M-lambda413-1127_V21.fsp_0.25um1_full_out_v128.dat"
+scattering_cross_section = "Pillar_on_Si-r75h75-5M_V05.fsp_scatCS.dat"
+cone_transmission = "Pillar_on_Si_forFarField-r75h75-p4000nm-5M_V06.fsp_monTransmission3_full_out.dat"
+cone_reflection = "Pillar_on_Si_forFarField-r75h75-p4000nm-5M_V06.fsp_monReflection_full_out.dat"
+
+[[column]]
+height_nm = 175
+farfield = "500nmSi-wAbs-withBumpH175R75nm-BS350nm-Acc4-4M-lambda413-1127_V21.fsp_0.25um1_full_out_v128.dat"
+scattering_cross_section = "Pillar_on_Si-r75h175-5M_V05.fsp_scatCS.dat"
+cone_transmission = "Pillar_on_Si_forFarField-r75h175-p4000nm-5M_V06.fsp_monTransmission3_full_outV7.dat"
+cone_reflection = "Pillar_on_Si_forFarField-r75h175-p4000nm-5M_V06.fsp_monReflection_full_outV7.dat"
+
+[plot]
+krad = 0.8
+xlim = [1.2, 2.0]
+labels_on_height = 175   # draw the region labels in this column

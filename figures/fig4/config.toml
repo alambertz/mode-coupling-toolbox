@@ -1,0 +1,15 @@
+# Fig. 4: periodic pillars (r = h = 75 nm, p = 350 nm) on 500 nm Si on a perfect mirror.
+# Values reproduce the published figure (plot_fig4_clean_V161.py).
+
+farfield = "500nmSi-wAbs-withBumpH75R75nm-BS350nm-Acc4-4M-Conf0-lambda300-1200_1nmSTEP_V15.fsp_15UMlateral_full_out_v127.dat"
+norm = "R"              # normalise to the power entering the structure, (1 - R)
+lambda_min = 400        # nm; shorter wavelengths are not shown
+silicon = ["siliconR.txt", "siliconI.txt"]
+mode_library = "500nmSi-highP.dat"
+thickness_nm = 500      # Si slab, for the Lambertian (4n^2) reference curve
+
+[plot]
+vmax = 20               # colorbar maximum (%)
+krad = 0.25             # um^-1; width of the mode-0 attribution window (see heatmap.attribute_modes)
+xlim = [1.1, 3.0]       # eV
+kmax = 40               # um^-1, heatmap y range

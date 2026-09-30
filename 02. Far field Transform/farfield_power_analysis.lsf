@@ -1,5 +1,5 @@
 #####################################################################
-# farfield_power_analysis_lsf129.lsf  (Lumerical FDTD script)
+# farfield_power_analysis.lsf (v130)  (Lumerical FDTD script)
 #
 # Purpose
 #   Post-processes a light-trapping FDTD simulation:
@@ -14,7 +14,7 @@
 #        - one file per frequency:  <name>_freq<N>_out.dat
 #          (cone half-angle in deg vs power in each momentum bin, W)
 #        - one summary file for all frequencies:
-#          <name>_<step_size>um1_tgt+1-4xRes_full_out_v129.dat
+#          <name>_<step_size>um1_tgt+1-4xRes_full_out_v130.dat
 #          columns: lambda (nm), source power (W), transmitted power (W),
 #                   (1-R) power entering the structure (W), total far-field
 #                   power (W), then k values (um^-1) [first half of the
@@ -58,12 +58,12 @@ lateral_size=get("x span");  # Lateral (x) extent of the simulated structure (m)
 
 # Full output filename. Decoded suffix: <step_size> um^-1 momentum bins,
 # "tgt+1" = tiling with periods = tgtsize/lateral_size+1, "4xRes" = far-field grid
-# 4x finer than step_size, "full_out" = all frequencies, v129 = script version.
-full_name=currentfilename +"_"+num2str(step_size)+"um1_tgt+1-4xRes_full_out_v129.dat";
+# 4x finer than step_size, "full_out" = all frequencies, v130 = script version (v130: summary written once after the loop, source power per frequency).
+full_name=currentfilename +"_"+num2str(step_size)+"um1_tgt+1-4xRes_full_out_v130.dat";
 
 # Retrieve monitor results.
 f=getdata(monitor,"f");      # Frequency vector (Hz).
-T_result = getresult(monitor, "T"); # Struct: .lambda = wavelength (m), .T = complex transmission coefficient.
+T_result = getresult(monitor, "T"); # Struct: .lambda = wavelength (m), .T = power transmission normalised to the source (sign = flow direction).
 electric = getelectric(monitor);  # Electric field on the monitor (fetched but not used further - kept for debugging).
 x = getdata(monitor,"x");         # Monitor real-space x coordinates (m), needed by integrate().
 y = getdata(monitor,"y");         # Monitor real-space y coordinates (m), needed by integrate().
@@ -73,7 +73,7 @@ lambda=T_result.lambda*1e9;   # Wavelength array in nm (getresult returns lambda
 T=abs(T_result.T);     # Magnitude of the transmission coefficient (fraction of source power transmitted).
 sp=sourcepower(f);     # Power injected by the source at each frequency (W).
 transmitted_power=T*sp;  # Transmitted power per frequency (W) = T * P_source.
-R_result = getresult(reflection, "T"); # Reflection result struct (.T = complex reflection coefficient).
+R_result = getresult(reflection, "T"); # Reflection result struct (.T = reflected power / source power; negative, flow is upwards).
 reflected_power=(1-abs(R_result.T))*sp; # Power entering the structure (W): source power minus back-reflection, i.e. (1-R) * P_source.
 theta0=0; phi0=0; # Center direction of the integration cones in the far field (deg): normal incidence.
 
@@ -127,7 +127,7 @@ p_ff_total=0.5*n*sqrt(eps0/mu0)*farfield3dintegrate(E2,ux,uy);  # Total far-fiel
 
 # Start the line for this frequency in the output array
 data(f_idx,1) = lambda(f_idx);  # Wavelength (nm).
-data(f_idx,2) = sourcepower(f_idx);  # Source power (W).
+data(f_idx,2) = sp(f_idx);  # Source power (W) at this frequency (was sourcepower(f_idx), i.e. evaluated at f = f_idx Hz).
 data(f_idx,3) = transmitted_power(f_idx);  # Transmitted power T*P_source (W).
 data(f_idx,4) = reflected_power(f_idx);  # Power entering the structure (1-R)*P_source (W).
 data(f_idx,5) = p_ff_total;  # Total far-field radiated power (W).
@@ -182,18 +182,13 @@ p_ff_cone_prev=p_ff_cone;
 # write the data to the file
 write(oname,num2str(angle_data));   # Per-frequency angle vs power table.
 
-# Remove in case it exists already, otherwise Lum would append
-if (fileexists(full_name)) {del(full_name);}  # NOTE: rewritten on every frequency iteration; only the final write matters (could be moved after the loop).
-
-# write the file header
-write(full_name,"lambda (nm), Source power (W), Trans power (W), 1-R power (W), FF total power (W), k (um-1) [1. half of line remainder], Power in cone up to k (W) [2nd holr]");  # ("holr" in the header string is a typo for "half"; left as-is so old files keep matching).
-
-# write the data to the file
-write(full_name,num2str(data));   # Full matrix: all frequencies.
-
-
-
 # End loop frequencies
 }
+
+# Write the summary file for all frequencies (once, after the loop).
+# Layout per row: 5 summary columns, array_size k values (um^-1), array_size per-bin powers (W).
+if (fileexists(full_name)) {del(full_name);}  # remove, otherwise Lumerical appends
+write(full_name,"lambda (nm), Source power (W), Trans power (W), 1-R power (W), FF total power (W), k (um-1) [1st half of line remainder], Power in k-bin (k-step, k] (W) [2nd half]");
+write(full_name,num2str(data));
 
 

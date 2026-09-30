@@ -1,0 +1,29 @@
+# Fig. 6: Poisson-random and hyperuniform-disordered pillars (h = 175 nm) on 500 nm Si on a perfect mirror.
+# Values reproduce the published figure (plot_fig6_N_v129_V213.py).
+
+norm = "T"                   # normalised to the transmitted power (Figs. 4, 5, 7 use "R")
+silicon_light_line = "siliconR.txt"
+silicon_lambertian = "Si.dat" # permittivity data; used for the 4n^2 reference curve only
+thickness_nm = 500
+
+[[column]]
+label = "Poisson random"
+farfield = "500nmSi-wAbs-withRandom5-H175nm-BS5.0um-Acc4-8M4-400nmfit-lambda413-1127_V22.fsp_0.5um1_full_out_v129.dat"
+title_color = "#4F628E"
+
+[[column]]
+label = "Hyperuniform disordered"
+farfield = "500nmSi-wAbs-HUDPillar-H175R150nm-BS5.0um-Acc4-8M4400nmfit-lambda413-1127_V23.fsp_0.5um1_full_out_v128.dat"
+title_color = "#649797"
+
+[psd]                        # power spectral densities of the two patterns (k in um^-1, PSD a.u.)
+random = "random5_size5.0um_ff52_out.dat"
+hyperuniform = "holes_5k_out.dat"
+random_color = "#7585A8"
+hyperuniform_color = "#9BC1C1"
+
+[plot]
+vmax = 3                     # colorbar maximum (%)
+min_energy_spacing = 0.006   # eV; the heatmap shows energies at least this far apart
+xlim = [1.1, 3.0]
+kmax = 60

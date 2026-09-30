@@ -31,8 +31,6 @@ path=(abspath(getsourcefile(lambda:0))).split('/')
 pth=''
 for st in path[0:len(path)-1]:
     pth+='/'+st 
-sys.path.append("C:\\Program Files\\Lumerical\\v242\\api\\python\\") #Default windows lumapi path
-sys.path.append("/opt/lumerical/v222/api/python/lumapi.py") #Default linux lumapi path
 sys.path.append(pth) #Current directory
 
 
@@ -470,7 +468,7 @@ def setupFDTD(properties={}):
 def buildFDTD(props,fname='sim',hide=True):
     global setpam
     #Create simulation object and load an FSP that has optimized material fits!
-    fdtd=lumapi.FDTD(filename="material-setup.fsp",hide=hide)
+    fdtd=lumapi.FDTD(filename=os.path.join(pth, "material-setup.fsp"),hide=hide)
     #Clear All Objects
     fdtd.switchtolayout()
     fdtd.deleteall()

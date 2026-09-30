@@ -1,43 +1,105 @@
 # mode-coupling-toolbox
-ANSYS-Lumerical FDTD simulation setup and post-processing pipeline for quantifying light coupling to guided modes in semiconductor slabs with arbitrary scattering patterns
 
-This repository accompanies the publication "Quantifying light coupling to guided modes in semiconductor slabs with arbitrary scattering patterns" by A. Lambertz, E. Alarcon-Llado, and Jorik van de Groep, [in review at Optics Express], 2026.
+Post-processing pipeline for full-wave (FDTD) simulations that quantifies how light couples to the guided
+modes of a semiconductor slab with an arbitrary, periodic or disordered, surface pattern. From a single
+simulation it produces the energy- and momentum-resolved power distribution, the power trapped beyond the
+escape cone, the absorptance per guided mode, and the internal and external loss rates of individual
+guided-mode resonances (GMRs).
 
-"Toolbox" here refers to the complete post-processing pipeline and comprises six modules:
+It accompanies the article *Quantifying light coupling to guided modes in semiconductor slabs with
+arbitrary scattering patterns* by A. Lambertz, E. Alarcon-Llado and J. van de Groep (Optics Express,
+in review, 2026). The state of the repository at submission is tagged `v1.0-submission`.
 
-1. FDTD simulation of arbitrary 3D structures with frequency-domain power-dissipation monitors.
-2. Far-field projection to obtain momentum-resolved spectral decomposition of absorptance.
-3. Construction of k∥–E_ph heatmaps from the spatially resolved dissipation data.
-4. Internal loss decomposition into material absorption (γ_i) and radiative channels (γ_r).
-5. Peak-finding algorithm to match guided-mode dispersion curves obtained from mode solvers.
-6. GMR fitting to obtain physical quantities including the coupling rates.
+## Modules
 
-# Description of the content
+| # | Module | Where |
+|---|---|---|
+| 1 | FDTD simulation of the 3D structure (ANSYS Lumerical) | `01. FDTD simulation/` |
+| 2 | Far-field projection of the monitor fields and integration into momentum bins | `02. Far field Transform/farfield_power_analysis.lsf` |
+| 3 | Energy-momentum heatmaps | `mctoolbox.io`, `mctoolbox.heatmap` |
+| 4 | Power within / beyond the escape cone; absorptance per guided mode | `mctoolbox.heatmap` |
+| 5 | Peak finding in momentum and energy slices | `mctoolbox.peaks` |
+| 6 | Peak fitting: mode momentum, FWHM, loss rates gamma_i and gamma_e | `mctoolbox.fit` |
 
-The folders are numbered in pipeline order and map onto the six modules: `01` → 1, `02` → 2, `03-05` → 3–4, `06` → 5–6.
+Modules 1-2 need a Lumerical licence. Modules 3-6 are a small Python package (numpy, scipy, matplotlib) and
+run on the far-field files included here.
 
-| Folder | Content |
-|---|---|
-| `01. FDTD simulation/` | Lumerical FDTD projects (`.fsp`) for 500 nm Si slabs with absorption and periodic, HUD-pillar, or random surface patterns, plus an infinite-slab reference. Python scripts rebuild the same setups via lumapi; GDS files define the surface patterns; `material-setup.fsp` holds the material data. |
-| `02. Far field Transform/` | Lumerical script `farfield_power_analysis.lsf`: after the FDTD run it extracts the far field for every frequency and integrates the radiated power into momentum bins (um⁻¹) around the normal direction. Writes one per-frequency `.dat` and one full summary `.dat`. Example outputs included. |
-| `03-05. Plotting Heatmaps and quantifying absorptance/` | Python scripts for Figs. 4–6: `Periodic/plot_fig4.py` (far-field heatmaps, power integrals, and per-mode absorptance for the periodic structures) and `Disordered/plot_fig6.py` (random / HUD-pillar patterns). Shared `general_settings.py` (figure style, A6 size, 300 dpi), material data files (Si, Ag), mode libraries, AM15G solar spectrum, and the far-field `.dat` inputs. |
-| `06. Coupling Analysis/` | Python toolbox for Fig. 7: `plot_fig7_class.py` (MC7 analysis class: imports far-field `.dat`, fits mode dispersions, computes coupling), `plot_fig7_interactive_v2.py` (command-line script) and `toolbox_v3_gui.py` (tkinter GUI with heatmap / momentum-slice / energy-slice / coupling-view panels). Includes material data and example far-field outputs. |
+## Install
 
-# Requirements
+```bash
+python -m venv .venv && . .venv/bin/activate
+pip install -e ".[test]"
+```
 
-- **Step 01:** ANSYS Lumerical FDTD v22.2 (the Python setup scripts assume the lumapi path `/opt/lumerical/v222/api/python/lumapi.py` on Linux — adjust for other installations).
-- **Step 02:** run inside Lumerical with the corresponding FDTD project open.
-- **Steps 03–06:** Python 3 with `numpy`, `matplotlib`, `scipy`, `Pillow`; a LaTeX installation (TeX Live + cm-super — figures use `text.usetex` with Arial); `ramanspy` for the Fig. 7 fits; `tkinter` + a display for the GUI (step 06 only).
-- All input data files (material data, mode libraries, AM15G spectrum, far-field outputs) are included in the repository.
+The figure scripts render text with LaTeX, as in the paper (TeX Live with `helvet`, `sansmath`, `cm-super`).
+Without LaTeX, set `MCT_USETEX=0`.
 
-# Usage
+## Quick start
 
-The folders are numbered in execution order:
+`examples/minimal_example.ipynb` walks through modules 3-6 on one dataset (hyperuniform pattern, 1.4 MB):
+reading, heatmap, escape-cone fractions, momentum-domain fits and coupling rates.
 
-1. **FDTD simulation** — open one of the `.fsp` projects in Lumerical and run it (or rebuild a setup with the corresponding Python script via lumapi), e.g. `500nmSi-wAbs-HUDPillar-...-V23.fsp`.
-2. **Far field transform** — in the same project, run `farfield_power_analysis.lsf` (set `step_size`, monitor names, and refractive index at the top of the script). This produces `<project>_<step>um1_..._full_out_v1xx.dat` plus one file per frequency. Copy the full-output `.dat` into the folders of steps 3–4 that need it.
-3. **Figs. 4–6** — from the respective folder: `python plot_fig4.py` (Periodic) or `python plot_fig6.py` (Disordered). The scripts pick up the far-field `.dat` files in the same folder via glob, plus the mode libraries, material data, and AM15G.dat; figures are saved as PDF/PNG with a version suffix.
-4. **Fig. 7** — from `06. Coupling Analysis/`:
-   - GUI: `python toolbox_v3_gui.py` (needs tkinter + display), or `python toolbox_v3_gui.py --test [file]` for a headless smoke test that saves all four panels to `/tmp/toolbox_test/`;
-   - command line: `python plot_fig7_interactive_v2.py`.
-   Both read the far-field `.dat` file(s) plus Si/Ag material data from the folder.
+```python
+from mctoolbox.io import read_farfield, load_nk
+from mctoolbox.fit import analyse_coupling
+
+ff = read_farfield('figures/fig7/<file>_0.5um1_full_out_v128.dat', norm='R', max_energy=1.35)
+si = load_nk('figures/fig7/siliconR.txt', 'figures/fig7/siliconI.txt')
+table = analyse_coupling(ff, si).espace_table()   # k, E0, amplitude, gamma_i, gamma_e, N, unique, gamma_e/gamma_i
+```
+
+## Reproducing the figures
+
+```bash
+python -m mctoolbox.figures          # Figs. 4-7, or e.g.: python -m mctoolbox.figures 7
+```
+
+Each `figures/figN/` folder is self-contained: the data it uses, a `config.toml` with every parameter, and
+`make_figN.py`. Outputs (`fig_N.pdf/png`, and for Fig. 7 the fit tables `fig7_*_fits.csv`) are written into
+the same folder. `figures/fig7/gui.py` opens an interactive explorer for the GMR analysis
+(`gui.py --test` renders its panels without a display).
+
+## Running your own simulation
+
+1. Build the simulation with one of the scripts in `01. FDTD simulation/` (they use `lumapi`; set
+   `LUMAPI_PATH` if your installation is not found automatically) or open one of the `.fsp` projects.
+   `material-setup.fsp` holds the silicon material fit.
+2. After the run, execute `farfield_power_analysis.lsf` in the same project. Set the monitor names, the
+   momentum bin width `step_size` and the substrate material at the top of the script.
+3. Read the resulting `*_full_out_v130.dat` with `mctoolbox.io.read_farfield` and continue as in the example.
+
+## Tests
+
+```bash
+pytest
+```
+
+The tests check the file readers, recover known loss rates from synthetic resonances, run all figure
+scripts, the GUI and the example notebook, and verify against tables exported from the original scripts
+(`reference/`) that the package reproduces the numbers of the submitted figures exactly when run with the
+submitted settings.
+
+## Changes since the submitted version (v1.0-submission)
+
+* The analysis code is one package instead of per-figure scripts; parameters live in `config.toml` files.
+  Peak finding uses `scipy.signal.find_peaks` directly (ramanspy is no longer needed).
+* **Far-field reader:** in the files with 0.25 um^-1 bins (script version v128) the power columns do not
+  start at half of the row. The previous scripts paired every k value with the power of the bin three
+  steps lower, shifting features by +0.75 um^-1 (Figs. 5 and 7). The reader now locates the power columns
+  from the data (`mctoolbox.io.power_column_offset`); `split='half'` reproduces the old behaviour.
+* **Energy-domain fit:** uses Eq. (HH) of the paper. The previous line shape had an extra factor 1/pi and
+  a width twice as large. For N = 1 the line shape cannot tell over- from under-coupling; the branch is now
+  chosen explicitly (`EFitSettings.branch`, default: gamma_i may not exceed the bulk absorption rate).
+  Momentum- and energy-domain thresholds are separate settings with their own units.
+* **Power fractions:** each energy used to be labelled with the next energy (one-step offset).
+* **Fig. 5, top row:** the escape-cone column is the cone containing the critical angle (was 3 degrees
+  smaller). File-to-panel assignments in Figs. 5 and 6 are explicit instead of depending on file order.
+* **FDTD scripts:** `lumapi` is found via `LUMAPI_PATH` or the standard install folders; the material
+  project `material-setup.fsp` is loaded from the script folder.
+* **`farfield_power_analysis.lsf` (v130):** stores the source power at each frequency (previously
+  evaluated at the loop index; this did not affect the included, CW-normalised plane-wave results) and
+  writes the summary file once.
+
+## Licence
+
+GPL-3.0-or-later, see `LICENSE`. Please cite the article when you use the toolbox (`CITATION.cff`).

@@ -26,24 +26,33 @@ path=(abspath(getsourcefile(lambda:0))).split('/')
 pth=''
 for st in path[0:len(path)-1]:
     pth+='/'+st 
-sys.path.append("C:\\Program Files\\ANSYS Inc\\v251\\Lumerical\\api\\python\\") #Default windows lumapi path
-sys.path.append("/opt/lumerical/v222/api/python/lumapi.py") #Default linux lumapi path
 sys.path.append(pth) #Current directory
 
-#The default paths for windows and linux
-try: #Windows
-    spec = importlib.util.spec_from_file_location('lumapi', 'C:\\Program Files\\ANSYS Inc\\v251\\Lumerical\\api\\python\\lumapi.py')
-    lumapi = importlib.util.module_from_spec(spec) #windows
-    spec.loader.exec_module(lumapi)
-    supercomp=False
-except: #accept Linux
-    print("detected linux")
-    spec_lin = importlib.util.spec_from_file_location('lumapi', "/gpfs/admin/_hpc/sw/arch/AMD-ZEN2/Centos8/EB_production/2021/software/Lumerical/2021-R2.3-2834-e18f3c9-OpenMPI-4.1.1/api/python/lumapi.py")
-#Functions that perform the actual loading
-#lumapi = importlib.util.module_from_spec(spec) #windows
-    lumapi = importlib.util.module_from_spec(spec_lin) #linux
-    spec_lin.loader.exec_module(lumapi)
-    supercomp=True
+#### LUMAPI
+# Lumerical Python API. Set the environment variable LUMAPI_PATH to the lumapi.py of your
+# installation if it is not found in one of the default locations below.
+from glob import glob as _glob
+
+def _load_lumapi():
+    candidates = [os.environ.get("LUMAPI_PATH", "")]
+    for pattern in ("C:\\Program Files\\ANSYS Inc\\v*\\Lumerical\\api\\python\\lumapi.py",
+                    "C:\\Program Files\\Lumerical\\v*\\api\\python\\lumapi.py",
+                    "/opt/lumerical/v*/api/python/lumapi.py",
+                    "/opt/ansys_inc/v*/Lumerical/api/python/lumapi.py"):
+        candidates += sorted(_glob(pattern), reverse=True)          # newest version first
+    # Snellius (SURF) installation used for the paper
+    candidates.append("/gpfs/admin/_hpc/sw/arch/AMD-ZEN2/Centos8/EB_production/2021/software/Lumerical/2021-R2.3-2834-e18f3c9-OpenMPI-4.1.1/api/python/lumapi.py")
+    for p in candidates:
+        if p and os.path.isfile(p):
+            spec = importlib.util.spec_from_file_location("lumapi", p)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module, p
+    raise ImportError("lumapi.py not found; set LUMAPI_PATH to the lumapi.py of your Lumerical installation")
+
+lumapi, LUMAPI_FILE = _load_lumapi()
+supercomp = LUMAPI_FILE.startswith("/gpfs/")   # sweeps are submitted as cluster jobs there
+print("lumapi:", LUMAPI_FILE)
 
 
 ## Some definitions and constants:
